@@ -37,6 +37,12 @@ public static class AssemblyFixture
         var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var dllByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        // Fail clearly if the plugin hasn't been built yet, rather than letting
+        // Directory.GetFiles throw a less actionable DirectoryNotFoundException below.
+        if (!File.Exists(PluginDllPath))
+            throw new FileNotFoundException(
+                $"Plugin DLL not found at '{PluginDllPath}'. Build the plugin first.");
+
         // Priority 1: Plugin output dir (correct versions win)
         foreach (var dll in Directory.GetFiles(PluginOutputDir, "*.dll"))
             dllByName[Path.GetFileName(dll)] = dll;
@@ -58,9 +64,12 @@ public static class AssemblyFixture
 
     private static IEnumerable<string> ResolveDepsJsonAssemblies(string depsJsonPath)
     {
-        var nugetDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".nuget", "packages");
+        // Honor NUGET_PACKAGES (common in CI / enterprise setups); fall back to the default.
+        var nugetDir = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+        if (string.IsNullOrEmpty(nugetDir))
+            nugetDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".nuget", "packages");
 
         using var stream = File.OpenRead(depsJsonPath);
         using var doc = JsonDocument.Parse(stream);
@@ -110,14 +119,12 @@ public static class AssemblyFixture
             AppContext.BaseDirectory, "..", "..", "..", "..", "src"));
 
     /// <summary>Find the source file content that declares the given class (scans src recursively).</summary>
-    public static string? FindSourceForClass(string className)
-    {
-        foreach (var file in Directory.GetFiles(SourceDirectory, "*.cs", SearchOption.AllDirectories))
-        {
-            var content = File.ReadAllText(file);
-            if (content.Contains($"class {className}"))
-                return content;
-        }
-        return null;
-    }
+    // Read every source file once, then search in memory - FindSourceForClass is called by many tests.
+    private static readonly Lazy<string[]> AllSourceContents = new(() =>
+        Directory.GetFiles(SourceDirectory, "*.cs", SearchOption.AllDirectories)
+            .Select(File.ReadAllText)
+            .ToArray());
+
+    public static string? FindSourceForClass(string className) =>
+        AllSourceContents.Value.FirstOrDefault(content => content.Contains($"class {className}"));
 }
