@@ -93,7 +93,7 @@ public class ConfigDeserializationTests
         """;
 
     [Fact]
-    public void Config_Deserializes_Sample_Json()
+    public void Config_Sample_Json_Has_Expected_Keys()
     {
         var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(SampleJson);
         dict.Should().ContainKey("id");

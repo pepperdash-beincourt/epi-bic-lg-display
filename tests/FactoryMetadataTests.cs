@@ -49,8 +49,9 @@ public class FactoryMetadataTests
         var all = new List<string>();
         foreach (var factory in new[] { "LgDisplayControllerFactory", "LgDisplayIRFactory" })
         {
-            var content = AssemblyFixture.FindSourceForClass(factory)!;
-            var match = Regex.Match(content, @"TypeNames\s*=\s*new\s+List<string>\s*\{([^}]+)\}");
+            var content = AssemblyFixture.FindSourceForClass(factory);
+            content.Should().NotBeNull($"source for '{factory}' should exist");
+            var match = Regex.Match(content!, @"TypeNames\s*=\s*new\s+List<string>\s*\{([^}]+)\}");
             if (!match.Success) continue;
             all.AddRange(Regex.Matches(match.Groups[1].Value, @"""([^""]+)""").Select(m => m.Groups[1].Value));
         }
