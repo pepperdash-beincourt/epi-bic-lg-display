@@ -36,6 +36,8 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         private bool isWarmingUp;
         private bool inputSwitchPending;
         private bool powerOnPending;
+        private int powerOnRetryCount;
+        private CTimer powerOnRetryTimer;
         private string lastCommandPrefix;
         private int lastVolumeSent;
         private bool powerIsOn;
@@ -791,7 +793,7 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             {
                 case "a":
                     {
-                        PowerGet();
+                        RetryPowerOn();
                         break;
                     }
                 case "b":
@@ -1175,6 +1177,17 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             var powerCommandSent = false;
 
+            // Reset retry counter for new power-on request
+            powerOnRetryCount = 0;
+
+            // Dispose any existing retry timer
+            if (powerOnRetryTimer != null)
+            {
+                powerOnRetryTimer.Stop();
+                powerOnRetryTimer.Dispose();
+                powerOnRetryTimer = null;
+            }
+
             if (isSerialComm || overrideWol)
             {
                 SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "1" : "01"));
@@ -1208,6 +1221,53 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         public void PowerGet()
         {
             SendData(string.Format("ka {0} FF", Id));
+        }
+
+        /// <summary>
+        /// Retry power-on command with tiered strategy
+        /// </summary>
+        private void RetryPowerOn()
+        {
+            // Dispose existing timer if any
+            if (powerOnRetryTimer != null)
+            {
+                powerOnRetryTimer.Stop();
+                powerOnRetryTimer.Dispose();
+                powerOnRetryTimer = null;
+            }
+
+            powerOnRetryCount++;
+
+            if (powerOnRetryCount > 5)
+            {
+                this.LogError("Power-on command failed after 5 retry attempts. Display may require manual power-on.");
+                powerOnRetryCount = 0;
+                IsWarmingUp = false;
+                return;
+            }
+
+            // First 3 retries: 2 seconds apart
+            if (powerOnRetryCount <= 3)
+            {
+                this.LogVerbose("Power-on retry #{0} in 2 seconds...", powerOnRetryCount);
+                powerOnRetryTimer = new CTimer((o) =>
+                {
+                    SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "1" : "01"));
+                }, 2000);
+            }
+            // Last 2 retries: 5 seconds apart with wake-up query
+            else
+            {
+                this.LogVerbose("Power-on retry #{0} in 5 seconds (with wake-up query)...", powerOnRetryCount);
+                powerOnRetryTimer = new CTimer((o) =>
+                {
+                    // Send wake-up query first
+                    PowerGet();
+                    CrestronEnvironment.Sleep(500);
+                    // Then send power-on
+                    SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "1" : "01"));
+                }, 5000);
+            }
         }
 
 
@@ -1261,6 +1321,23 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             var wasOn = PowerIsOn;
             PowerIsOn = s.Contains("1");
+
+            // If power successfully turned on, clean up retry state
+            if (PowerIsOn && !wasOn)
+            {
+                var retryAttempts = powerOnRetryCount;
+                powerOnRetryCount = 0;
+                if (powerOnRetryTimer != null)
+                {
+                    powerOnRetryTimer.Stop();
+                    powerOnRetryTimer.Dispose();
+                    powerOnRetryTimer = null;
+                }
+                if (retryAttempts > 0)
+                {
+                    this.LogInformation("Power-on successful after {0} retry attempt(s)", retryAttempts);
+                }
+            }
         }
 
         /// <summary>
