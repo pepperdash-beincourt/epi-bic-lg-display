@@ -36,6 +36,22 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             AddAction("/volumeUp", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.VolumeUp));
             AddAction("/volumeDown", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.VolumeDown));
             AddAction("/muteToggle", (id, content) => device.MuteToggle());
+
+            // Tuner/Channel Control Actions
+            AddAction("/keypad/0", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress0));
+            AddAction("/keypad/1", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress1));
+            AddAction("/keypad/2", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress2));
+            AddAction("/keypad/3", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress3));
+            AddAction("/keypad/4", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress4));
+            AddAction("/keypad/5", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress5));
+            AddAction("/keypad/6", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress6));
+            AddAction("/keypad/7", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress7));
+            AddAction("/keypad/8", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress8));
+            AddAction("/keypad/9", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.KeypadPress9));
+            AddAction("/channelUp", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.ChannelUp));
+            AddAction("/channelDown", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.ChannelDown));
+            AddAction("/guide", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.Guide));
+            AddAction("/last", (id, content) => PressAndHoldHandler.HandlePressAndHold(DeviceKey, content, device.Last));
         }
     }
 }

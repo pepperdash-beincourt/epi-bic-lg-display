@@ -117,6 +117,10 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             trilist.SetSigTrueAction(joinMap.PowerOff.JoinNumber, PowerOff);
             trilist.SetSigTrueAction(joinMap.PowerOn.JoinNumber, PowerOn);
 
+            // warming/cooling feedback
+            IsWarmingUpFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsWarmingUp.JoinNumber]);
+            IsCoolingDownFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsCoolingDown.JoinNumber]);
+
             // input (digital select, digital feedback, names)
             for (var i = 0; i < InputPorts.Count; i++)
             {
@@ -141,6 +145,22 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 ExecuteSwitch(GetInputPort(analogValue).Selector);
                 //SetInput = analogValue;
             });
+
+            // Tuner/Channel controls
+            trilist.SetSigTrueAction(joinMap.KeypadPress0.JoinNumber, () => KeypadPress0());
+            trilist.SetSigTrueAction(joinMap.KeypadPress1.JoinNumber, () => KeypadPress1());
+            trilist.SetSigTrueAction(joinMap.KeypadPress2.JoinNumber, () => KeypadPress2());
+            trilist.SetSigTrueAction(joinMap.KeypadPress3.JoinNumber, () => KeypadPress3());
+            trilist.SetSigTrueAction(joinMap.KeypadPress4.JoinNumber, () => KeypadPress4());
+            trilist.SetSigTrueAction(joinMap.KeypadPress5.JoinNumber, () => KeypadPress5());
+            trilist.SetSigTrueAction(joinMap.KeypadPress6.JoinNumber, () => KeypadPress6());
+            trilist.SetSigTrueAction(joinMap.KeypadPress7.JoinNumber, () => KeypadPress7());
+            trilist.SetSigTrueAction(joinMap.KeypadPress8.JoinNumber, () => KeypadPress8());
+            trilist.SetSigTrueAction(joinMap.KeypadPress9.JoinNumber, () => KeypadPress9());
+            trilist.SetSigTrueAction(joinMap.ChannelUp.JoinNumber, () => ChannelUp());
+            trilist.SetSigTrueAction(joinMap.ChannelDown.JoinNumber, () => ChannelDown());
+            trilist.SetSigTrueAction(joinMap.Guide.JoinNumber, () => Guide());
+            trilist.SetSigTrueAction(joinMap.Last.JoinNumber, () => Last());
 
 
             // bridge online change
@@ -575,6 +595,263 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             };
             IsWarmingUpFeedback.OutputChange += handler; // attach and wait for on FB
             PowerOn();
+        }
+
+        #endregion
+
+
+        #region Tuner/Channel Control Members
+
+        /// <summary>
+        /// Send numeric keypad 0
+        /// </summary>
+        public void KeypadPress0()
+        {
+            Debug.LogInformation(this, "KeypadPress0: ir command '{0}'", IrStandardCommands.KP0);
+            SendIrCommand(IrStandardCommands.KP0);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 0 on press
+        /// </summary>
+        public void KeypadPress0(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress0();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 1
+        /// </summary>
+        public void KeypadPress1()
+        {
+            Debug.LogInformation(this, "KeypadPress1: ir command '{0}'", IrStandardCommands.KP1);
+            SendIrCommand(IrStandardCommands.KP1);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 1 on press
+        /// </summary>
+        public void KeypadPress1(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress1();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 2
+        /// </summary>
+        public void KeypadPress2()
+        {
+            Debug.LogInformation(this, "KeypadPress2: ir command '{0}'", IrStandardCommands.KP2);
+            SendIrCommand(IrStandardCommands.KP2);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 2 on press
+        /// </summary>
+        public void KeypadPress2(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress2();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 3
+        /// </summary>
+        public void KeypadPress3()
+        {
+            Debug.LogInformation(this, "KeypadPress3: ir command '{0}'", IrStandardCommands.KP3);
+            SendIrCommand(IrStandardCommands.KP3);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 3 on press
+        /// </summary>
+        public void KeypadPress3(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress3();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 4
+        /// </summary>
+        public void KeypadPress4()
+        {
+            Debug.LogInformation(this, "KeypadPress4: ir command '{0}'", IrStandardCommands.KP4);
+            SendIrCommand(IrStandardCommands.KP4);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 4 on press
+        /// </summary>
+        public void KeypadPress4(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress4();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 5
+        /// </summary>
+        public void KeypadPress5()
+        {
+            Debug.LogInformation(this, "KeypadPress5: ir command '{0}'", IrStandardCommands.KP5);
+            SendIrCommand(IrStandardCommands.KP5);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 5 on press
+        /// </summary>
+        public void KeypadPress5(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress5();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 6
+        /// </summary>
+        public void KeypadPress6()
+        {
+            Debug.LogInformation(this, "KeypadPress6: ir command '{0}'", IrStandardCommands.KP6);
+            SendIrCommand(IrStandardCommands.KP6);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 6 on press
+        /// </summary>
+        public void KeypadPress6(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress6();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 7
+        /// </summary>
+        public void KeypadPress7()
+        {
+            Debug.LogInformation(this, "KeypadPress7: ir command '{0}'", IrStandardCommands.KP7);
+            SendIrCommand(IrStandardCommands.KP7);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 7 on press
+        /// </summary>
+        public void KeypadPress7(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress7();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 8
+        /// </summary>
+        public void KeypadPress8()
+        {
+            Debug.LogInformation(this, "KeypadPress8: ir command '{0}'", IrStandardCommands.KP8);
+            SendIrCommand(IrStandardCommands.KP8);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 8 on press
+        /// </summary>
+        public void KeypadPress8(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress8();
+        }
+
+        /// <summary>
+        /// Send numeric keypad 9
+        /// </summary>
+        public void KeypadPress9()
+        {
+            Debug.LogInformation(this, "KeypadPress9: ir command '{0}'", IrStandardCommands.KP9);
+            SendIrCommand(IrStandardCommands.KP9);
+        }
+
+        /// <summary>
+        /// Send numeric keypad 9 on press
+        /// </summary>
+        public void KeypadPress9(bool pressRelease)
+        {
+            if (pressRelease) return;
+            KeypadPress9();
+        }
+
+        /// <summary>
+        /// Channel Up
+        /// </summary>
+        public void ChannelUp()
+        {
+            Debug.LogInformation(this, "ChannelUp: ir command '{0}'", IrStandardCommands.ChannelUp);
+            SendIrCommand(IrStandardCommands.ChannelUp);
+        }
+
+        /// <summary>
+        /// Channel Up on press
+        /// </summary>
+        public void ChannelUp(bool pressRelease)
+        {
+            if (pressRelease) return;
+            ChannelUp();
+        }
+
+        /// <summary>
+        /// Channel Down
+        /// </summary>
+        public void ChannelDown()
+        {
+            Debug.LogInformation(this, "ChannelDown: ir command '{0}'", IrStandardCommands.ChannelDown);
+            SendIrCommand(IrStandardCommands.ChannelDown);
+        }
+
+        /// <summary>
+        /// Channel Down on press
+        /// </summary>
+        public void ChannelDown(bool pressRelease)
+        {
+            if (pressRelease) return;
+            ChannelDown();
+        }
+
+        /// <summary>
+        /// Open channel guide
+        /// </summary>
+        public void Guide()
+        {
+            Debug.LogInformation(this, "Guide: ir command '{0}'", IrStandardCommands.Guide);
+            SendIrCommand(IrStandardCommands.Guide);
+        }
+
+        /// <summary>
+        /// Open channel guide on press
+        /// </summary>
+        public void Guide(bool pressRelease)
+        {
+            if (pressRelease) return;
+            Guide();
+        }
+
+        /// <summary>
+        /// Last channel/input
+        /// </summary>
+        public void Last()
+        {
+            Debug.LogInformation(this, "Last: ir command '{0}'", IrStandardCommands.Last);
+            SendIrCommand(IrStandardCommands.Last);
+        }
+
+        /// <summary>
+        /// Last channel/input on press
+        /// </summary>
+        public void Last(bool pressRelease)
+        {
+            if (pressRelease) return;
+            Last();
         }
 
         #endregion
