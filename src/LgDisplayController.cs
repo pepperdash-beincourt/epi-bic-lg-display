@@ -1124,9 +1124,15 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public override void PowerOn()
         {
+            this.LogInformation($"PowerOn called: PowerIsOn={PowerIsOn}, IsCoolingDown={IsCoolingDown}, IsWarmingUp={IsWarmingUp}, powerOnPending={powerOnPending}");
+            
             if (IsCoolingDown)
             {
-                if (powerOnPending) return;
+                if (powerOnPending)
+                {
+                    this.LogInformation("PowerOn: powerOnPending is true, returning without action.");
+                    return;
+                }
 
                 powerOnPending = true;
                 CrestronInvoke.BeginInvoke((o) =>
@@ -1206,6 +1212,13 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             var wasPowerOn = PowerIsOn;
 
             SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "0" : "00"));
+
+            // Immediately update power state to prevent race condition where room wake
+            // checks PowerIsOnFeedback before the power-off response/poll updates it
+            PowerIsOn = false;
+            PowerIsOnFeedback.FireUpdate();
+            
+            this.LogInformation($"SendPowerOff: Set PowerIsOn=false, fired feedback update. PowerIsOnFeedback.BoolValue={PowerIsOnFeedback.BoolValue}");
 
             IsWarmingUp = false;
 
@@ -1320,11 +1333,14 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         public void UpdatePowerFb(string s)
         {
             var wasOn = PowerIsOn;
-            PowerIsOn = s.Contains("1");
+            var pollSaysPowerOn = s.Contains("1");
+            
+            PowerIsOn = pollSaysPowerOn;
 
             // If power successfully turned on, clean up retry state
             if (PowerIsOn && !wasOn)
             {
+                
                 var retryAttempts = powerOnRetryCount;
                 powerOnRetryCount = 0;
                 if (powerOnRetryTimer != null)
