@@ -7,51 +7,60 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
     /// <summary>
     /// LG SIC "mc" (Remote Control Key Action) hex keycodes, for the RS232 driver.
     ///
-    /// TODO: every value below is a PLACEHOLDER ("00") and MUST be replaced with the real
-    /// hex code from LG's official SIC/RS232 protocol reference before this ships. Sending an
-    /// incorrect code fails silently against real hardware - do not deploy with these unverified.
+    /// Values marked "sourced from community documentation" converge across multiple independent
+    /// installer/community references (Just Add Power, Cisco Community, openHAB's lgtvserial
+    /// binding, various DIY LG-RS232 projects) but were NOT cross-checked against LG's own
+    /// primary manual PDF (extraction failed) or against this specific display model/firmware.
+    /// Spot-check against the official manual before production deployment.
+    ///
+    /// Values still marked "XX" / TODO are genuinely unconfirmed - no source found (Home varies
+    /// by model generation and wasn't confirmed anywhere; the four media-app buttons are NOT part
+    /// of the standard remote-key table at all - LG's app-launch mechanism, if any, over RS232 is
+    /// a separate, unresearched question, not just a missing hex code).
+    ///
     /// Command names deliberately mirror IrStandardCommands.cs so the two tables stay easy to
     /// cross-check against each other and against the React app's brand-agnostic button set.
     /// </summary>
     public static class LgKeyCodes
     {
-        public const string PowerToggle = "00"; // TODO: verify against LG SIC reference
-        public const string KP1 = "00"; // TODO: verify against LG SIC reference
-        public const string KP2 = "00"; // TODO: verify against LG SIC reference
-        public const string KP3 = "00"; // TODO: verify against LG SIC reference
-        public const string KP4 = "00"; // TODO: verify against LG SIC reference
-        public const string KP5 = "00"; // TODO: verify against LG SIC reference
-        public const string KP6 = "00"; // TODO: verify against LG SIC reference
-        public const string KP7 = "00"; // TODO: verify against LG SIC reference
-        public const string KP8 = "00"; // TODO: verify against LG SIC reference
-        public const string KP9 = "00"; // TODO: verify against LG SIC reference
-        public const string KP0 = "00"; // TODO: verify against LG SIC reference
-        public const string ChannelUp = "00"; // TODO: verify against LG SIC reference
-        public const string ChannelDown = "00"; // TODO: verify against LG SIC reference
-        public const string Last = "00"; // TODO: verify against LG SIC reference
-        public const string Home = "00"; // TODO: verify against LG SIC reference
-        public const string Menu = "00"; // TODO: verify against LG SIC reference
-        public const string DpadUp = "00"; // TODO: verify against LG SIC reference
-        public const string DpadDown = "00"; // TODO: verify against LG SIC reference
-        public const string DpadLeft = "00"; // TODO: verify against LG SIC reference
-        public const string DpadRight = "00"; // TODO: verify against LG SIC reference
-        public const string DpadSelect = "00"; // TODO: verify against LG SIC reference
-        public const string Enter = "00"; // TODO: verify against LG SIC reference
-        public const string Back = "00"; // TODO: verify against LG SIC reference
-        public const string Exit = "00"; // TODO: verify against LG SIC reference
-        public const string Netflix = "00"; // TODO: verify against LG SIC reference
-        public const string PrimeVideo = "00"; // TODO: verify against LG SIC reference
-        public const string Disney = "00"; // TODO: verify against LG SIC reference
-        public const string SamsungTvPlus = "00"; // TODO: verify against LG SIC reference
-        public const string Guide = "00"; // TODO: verify against LG SIC reference
-        public const string FuncRed = "00"; // TODO: verify against LG SIC reference
-        public const string FuncGreen = "00"; // TODO: verify against LG SIC reference
-        public const string FuncYellow = "00"; // TODO: verify against LG SIC reference
-        public const string FuncBlue = "00"; // TODO: verify against LG SIC reference
-        public const string Play = "00"; // TODO: verify against LG SIC reference
-        public const string Pause = "00"; // TODO: verify against LG SIC reference
-        public const string FastForward = "00"; // TODO: verify against LG SIC reference
-        public const string Rewind = "00"; // TODO: verify against LG SIC reference
+        public const string PowerToggle = "08"; // sourced from community documentation
+        public const string KP1 = "11"; // sourced from community documentation
+        public const string KP2 = "12"; // sourced from community documentation
+        public const string KP3 = "13"; // sourced from community documentation
+        public const string KP4 = "14"; // sourced from community documentation
+        public const string KP5 = "15"; // sourced from community documentation
+        public const string KP6 = "16"; // sourced from community documentation
+        public const string KP7 = "17"; // sourced from community documentation
+        public const string KP8 = "18"; // sourced from community documentation
+        public const string KP9 = "19"; // sourced from community documentation
+        public const string KP0 = "10"; // sourced from community documentation
+        public const string ChannelUp = "00"; // sourced from community documentation (LG genuinely uses "00" for CH+)
+        public const string ChannelDown = "01"; // sourced from community documentation
+        public const string Last = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Home = "XX"; // TODO: verify against LG SIC reference (unconfirmed, varies by model generation) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Menu = "43"; // sourced from community documentation
+        public const string DpadUp = "40"; // sourced from community documentation
+        public const string DpadDown = "41"; // sourced from community documentation
+        public const string DpadLeft = "07"; // sourced from community documentation
+        public const string DpadRight = "06"; // sourced from community documentation
+        public const string DpadSelect = "44"; // sourced from community documentation
+        public const string Enter = "44"; // sourced from community documentation (same as DpadSelect)
+        public const string Back = "28"; // sourced from community documentation
+        public const string Exit = "5b"; // sourced from community documentation
+        public const string Netflix = "XX"; // TODO: verify - "XX" placeholder; app launch is likely
+                                             // NOT part of the standard mc table at all, see class summary above
+        public const string PrimeVideo = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Disney = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string SamsungTvPlus = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Guide = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string FuncRed = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string FuncGreen = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string FuncYellow = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string FuncBlue = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Play = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Pause = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string FastForward = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
+        public const string Rewind = "XX"; // TODO: verify against LG SIC reference (unconfirmed) - "XX" is not a real hex byte, deliberately invalid so it can't be mistaken for a genuine code
 
         public static readonly Dictionary<string, string> CommandDictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
