@@ -12,7 +12,8 @@ using DisplayBase = PepperDash.Essentials.Devices.Common.Displays.DisplayBase;
 
 namespace PepperDash.Essentials.Plugins.Lg.Display
 {
-    public class LgDisplayIrController : DisplayBase, IBasicVolumeControls, IBridgeAdvanced, IHasInputs<string>
+    public class LgDisplayIrController : DisplayBase, IBasicVolumeControls, IBridgeAdvanced, IHasInputs<string>,
+        IDPad, INumericKeypad, ITransport, IChannel, IColor
     {
         private readonly LgDisplayPropertiesConfig propertiesConfig;
 
@@ -73,19 +74,6 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             WarmupTime = propertiesConfig.warmingTimeMs > 0 ? propertiesConfig.warmingTimeMs : 8000;
         }
 
-
-        // protected override void CreateMobileControlMessengers()
-        // {
-        //     var mc = DeviceManager.AllDevices.OfType<IMobileControl>().FirstOrDefault();
-        //     if (mc == null)
-        //     {
-        //         Debug.LogInformation("Mobile Control not found");
-        //         return;
-        //     }
-
-        //     var messenger = new LgDisplayIrMobileControlMessenger($"{Key}", $"/device/{Key}", this);
-        //     mc.AddDeviceMessenger(messenger);
-        // }
 
 
         #region IBridgeAdvanced Members
@@ -298,6 +286,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             AddRoutingInputPort(
                 new RoutingInputPort(RoutingPortNames.AnyVideoIn, eRoutingSignalType.Audio | eRoutingSignalType.Video,
                     eRoutingPortConnectionType.Streaming, new Action(InputPrimeVideo), this), IrStandardCommands.PrimeVideo);
+            AddRoutingInputPort(
+                new RoutingInputPort(RoutingPortNames.AnyVideoIn, eRoutingSignalType.Audio | eRoutingSignalType.Video,
+                    eRoutingPortConnectionType.Streaming, new Action(InputDisney), this), IrStandardCommands.Disney);
+            AddRoutingInputPort(
+                new RoutingInputPort(RoutingPortNames.AnyVideoIn, eRoutingSignalType.Audio | eRoutingSignalType.Video,
+                    eRoutingPortConnectionType.Streaming, new Action(InputSamsungTvPlus), this), IrStandardCommands.SamsungTvPlus);
 
             Inputs = new LgDisplayIrInputs
             {
@@ -310,7 +304,9 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                     { "tv", new LgDisplayIrInput("tv", "TV", this) },
                     { "antenna", new LgDisplayIrInput("antenna", "Antenna", this) },
                     { "netflix", new LgDisplayIrInput("netflix", "Netflix", this) },
-                    { "primeVideo", new LgDisplayIrInput("primeVideo", "Prime Video", this) }
+                    { "primeVideo", new LgDisplayIrInput("primeVideo", "Prime Video", this) },
+                    { "disney", new LgDisplayIrInput("disney", "Disney+", this) },
+                    { "samsungTvPlus", new LgDisplayIrInput("samsungTvPlus", "Samsung TV Plus", this) }
                 }
             };
 
@@ -495,6 +491,44 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             InputPrimeVideo();
         }
 
+        /// <summary>
+        /// Select Disney+
+        /// </summary>
+        public void InputDisney()
+        {
+            Debug.LogInformation(this, "InputDisney: ir command '{0}'", IrStandardCommands.Disney);
+            SendIrCommand(IrStandardCommands.Disney);
+        }
+
+        /// <summary>
+        /// Select Disney+ on press
+        /// </summary>
+        /// <param name="pressRelease"></param>
+        public void InputDisney(bool pressRelease)
+        {
+            if (pressRelease) return;
+            InputDisney();
+        }
+
+        /// <summary>
+        /// Select Samsung TV Plus
+        /// </summary>
+        public void InputSamsungTvPlus()
+        {
+            Debug.LogInformation(this, "InputSamsungTvPlus: ir command '{0}'", IrStandardCommands.SamsungTvPlus);
+            SendIrCommand(IrStandardCommands.SamsungTvPlus);
+        }
+
+        /// <summary>
+        /// Select Samsung TV Plus on press
+        /// </summary>
+        /// <param name="pressRelease"></param>
+        public void InputSamsungTvPlus(bool pressRelease)
+        {
+            if (pressRelease) return;
+            InputSamsungTvPlus();
+        }
+
         public void InputToggle()
         {
             Debug.LogInformation(this, "InputToggle: ir command '{0}'", IrStandardCommands.InputToggle);
@@ -602,6 +636,260 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             Debug.LogInformation(this, "MuteToggle: ir command '{0}'", IrStandardCommands.MuteToggle);
             SendIrCommand(IrStandardCommands.MuteToggle);
+        }
+
+        #endregion
+
+
+        #region IDPad Members
+
+        public void Up(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.DpadUp);
+        }
+
+        public void Down(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.DpadDown);
+        }
+
+        public void Left(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.DpadLeft);
+        }
+
+        public void Right(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.DpadRight);
+        }
+
+        public void Select(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.DpadSelect);
+        }
+
+        public void Menu(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Menu);
+        }
+
+        /// <summary>
+        /// Shared with IChannel.Exit - a single method satisfies both interfaces.
+        /// </summary>
+        public void Exit(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Exit);
+        }
+
+        #endregion
+
+
+        #region INumericKeypad Members
+
+        public void Digit0(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP0);
+        }
+
+        public void Digit1(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP1);
+        }
+
+        public void Digit2(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP2);
+        }
+
+        public void Digit3(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP3);
+        }
+
+        public void Digit4(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP4);
+        }
+
+        public void Digit5(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP5);
+        }
+
+        public void Digit6(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP6);
+        }
+
+        public void Digit7(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP7);
+        }
+
+        public void Digit8(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP8);
+        }
+
+        public void Digit9(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.KP9);
+        }
+
+        // No LG remote-key equivalent for the keypad's accessory buttons (e.g. set-top-box
+        // Dash/Enter) - hidden on the front end via HasKeypadAccessoryButtonN = false.
+        public bool HasKeypadAccessoryButton1 => false;
+        public string KeypadAccessoryButton1Label => string.Empty;
+        public void KeypadAccessoryButton1(bool pressRelease) { }
+
+        public bool HasKeypadAccessoryButton2 => false;
+        public string KeypadAccessoryButton2Label => string.Empty;
+        public void KeypadAccessoryButton2(bool pressRelease) { }
+
+        #endregion
+
+
+        #region ITransport Members
+
+        public void Play(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Play);
+        }
+
+        public void Pause(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Pause);
+        }
+
+        public void Rewind(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Rewind);
+        }
+
+        public void FFwd(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.FastForward);
+        }
+
+        // No corresponding IR command exists in IrStandardCommands for these on a typical LG
+        // TV remote - no-ops, matching AppleTV's precedent for unmapped ITransport members.
+        public void ChapMinus(bool pressRelease) { }
+        public void ChapPlus(bool pressRelease) { }
+        public void Stop(bool pressRelease) { }
+        public void Record(bool pressRelease) { }
+
+        #endregion
+
+
+        #region IChannel Members
+
+        public void ChannelUp(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.ChannelUp);
+        }
+
+        public void ChannelDown(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.ChannelDown);
+        }
+
+        public void LastChannel(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Last);
+        }
+
+        public void Guide(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Guide);
+        }
+
+        // No dedicated "info" IR command exists in IrStandardCommands today - no-op.
+        public void Info(bool pressRelease) { }
+
+        // IChannel.Exit is satisfied by the IDPad.Exit implementation above.
+
+        #endregion
+
+
+        #region IColor Members
+
+        public void Red(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.FuncRed);
+        }
+
+        public void Green(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.FuncGreen);
+        }
+
+        public void Yellow(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.FuncYellow);
+        }
+
+        public void Blue(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.FuncBlue);
+        }
+
+        #endregion
+
+
+        #region Remote buttons with no matching core interface yet
+
+        // Home, Back, Enter, page up/down and sleep have no dedicated core DeviceTypeInterfaces
+        // member (IDPad only has Menu/Exit). Exposed as plain methods - same precedent as
+        // InputNetflix/InputPrimeVideo above - callable via devjson today; wiring these into the
+        // React app's UI needs either a core interface addition (out of scope this pass - same
+        // "touches shared core" category flagged for the Apple TV / IrDisplayBase questions) or a
+        // room-plugin-specific messenger action.
+
+        public void Home(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Home);
+        }
+
+        public void Back(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Back);
+        }
+
+        public void Enter(bool pressRelease)
+        {
+            if (pressRelease) return;
+            SendIrCommand(IrStandardCommands.Enter);
         }
 
         #endregion

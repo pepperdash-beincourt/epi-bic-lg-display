@@ -46,6 +46,11 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         public const string InputTv = "TV";
         public const string Netflix = "NETFLIX";
         public const string PrimeVideo = "AMAZON_VIDEO";
+        // TODO: verify these two against the loaded .ir file's actual command list
+        // (IrOutputPortController.IrFileCommands) - naming guessed by convention with the two
+        // verified entries above, not confirmed against a real LG .ir driver file.
+        public const string Disney = "DISNEY_PLUS";
+        public const string SamsungTvPlus = "SAMSUNG_TV_PLUS";
         public const string Guide = "GUIDE";
         public const string FuncRed = "RED";
         public const string FuncGreen = "GREEN";
@@ -99,6 +104,8 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             { nameof(InputTv), InputTv },
             { nameof(Netflix), Netflix },
             { nameof(PrimeVideo), PrimeVideo },
+            { nameof(Disney), Disney },
+            { nameof(SamsungTvPlus), SamsungTvPlus },
             { nameof(Guide), Guide },
             { nameof(FuncRed), FuncRed },
             { nameof(FuncGreen), FuncGreen },
