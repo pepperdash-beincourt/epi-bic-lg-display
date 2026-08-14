@@ -30,7 +30,11 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         public const string Home = "HOME";
         public const string Menu = "MENU";
         public const string DpadUp = "UP_ARROW";
-        public const string DpadDown = "DOWN_ARROW";
+        // DN_ARROW, not DOWN_ARROW. Every other entry in this table is a Crestron *standard command*
+        // name (HDMI_1, VOL+, CH+, INPUT_CYCLE, FSCAN...) rather than the .ir file's own button
+        // label, and the standard name for this one is DN_ARROW - "DOWN_ARROW" matched neither the
+        // standard list nor the file's label ("Down"), so it could not have resolved.
+        public const string DpadDown = "DN_ARROW";
         public const string DpadLeft = "LEFT_ARROW";
         public const string DpadRight = "RIGHT_ARROW";
         public const string DpadSelect = "SELECT";
@@ -46,11 +50,14 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         public const string InputTv = "TV";
         public const string Netflix = "NETFLIX";
         public const string PrimeVideo = "AMAZON_VIDEO";
-        // TODO: verify these two against the loaded .ir file's actual command list
-        // (IrOutputPortController.IrFileCommands) - naming guessed by convention with the two
-        // verified entries above, not confirmed against a real LG .ir driver file.
-        public const string Disney = "DISNEY_PLUS";
-        public const string SamsungTvPlus = "SAMSUNG_TV_PLUS";
+        // TODO: Disney+ and Samsung TV Plus have no entry in FlatPanelDisplay_LG_65SK9500-SmartTV.ir.
+        // They were here as "DISNEY_PLUS"/"SAMSUNG_TV_PLUS", guessed by convention from Netflix and
+        // AMAZON_VIDEO rather than read off a driver, and there is no guarantee those codes exist to
+        // be had. Removed rather than left in place: the front end builds its app buttons from the
+        // controller's Inputs dictionary, so keeping them meant shipping two buttons that could
+        // never do anything. If the codes turn up, add them to the .ir file first, then restore
+        // these constants, their dictionary entries below, the routing ports and the Inputs entries
+        // in LgDisplayIrController together.
         public const string Guide = "GUIDE";
         public const string FuncRed = "RED";
         public const string FuncGreen = "GREEN";
@@ -104,8 +111,6 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             { nameof(InputTv), InputTv },
             { nameof(Netflix), Netflix },
             { nameof(PrimeVideo), PrimeVideo },
-            { nameof(Disney), Disney },
-            { nameof(SamsungTvPlus), SamsungTvPlus },
             { nameof(Guide), Guide },
             { nameof(FuncRed), FuncRed },
             { nameof(FuncGreen), FuncGreen },

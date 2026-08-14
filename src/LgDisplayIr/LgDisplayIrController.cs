@@ -286,12 +286,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             AddRoutingInputPort(
                 new RoutingInputPort(RoutingPortNames.AnyVideoIn, eRoutingSignalType.Audio | eRoutingSignalType.Video,
                     eRoutingPortConnectionType.Streaming, new Action(InputPrimeVideo), this), IrStandardCommands.PrimeVideo);
-            AddRoutingInputPort(
-                new RoutingInputPort(RoutingPortNames.AnyVideoIn, eRoutingSignalType.Audio | eRoutingSignalType.Video,
-                    eRoutingPortConnectionType.Streaming, new Action(InputDisney), this), IrStandardCommands.Disney);
-            AddRoutingInputPort(
-                new RoutingInputPort(RoutingPortNames.AnyVideoIn, eRoutingSignalType.Audio | eRoutingSignalType.Video,
-                    eRoutingPortConnectionType.Streaming, new Action(InputSamsungTvPlus), this), IrStandardCommands.SamsungTvPlus);
+            // TODO: Disney+ and Samsung TV Plus are not in FlatPanelDisplay_LG_65SK9500-SmartTV.ir,
+            // and their command names were guesses by convention rather than read off a driver.
+            // Registering them anyway would advertise inputs the display cannot switch to - the
+            // front end lists whatever this dictionary holds, so they rendered as dead buttons.
+            // If codes turn up, add them to the .ir file first, then restore the constants, the
+            // routing ports and these entries together.
 
             Inputs = new LgDisplayIrInputs
             {
@@ -304,9 +304,7 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                     { "tv", new LgDisplayIrInput("tv", "TV", this) },
                     { "antenna", new LgDisplayIrInput("antenna", "Antenna", this) },
                     { "netflix", new LgDisplayIrInput("netflix", "Netflix", this) },
-                    { "primeVideo", new LgDisplayIrInput("primeVideo", "Prime Video", this) },
-                    { "disney", new LgDisplayIrInput("disney", "Disney+", this) },
-                    { "samsungTvPlus", new LgDisplayIrInput("samsungTvPlus", "Samsung TV Plus", this) }
+                    { "primeVideo", new LgDisplayIrInput("primeVideo", "Prime Video", this) }
                 }
             };
 
@@ -489,44 +487,6 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             if (pressRelease) return;
             InputPrimeVideo();
-        }
-
-        /// <summary>
-        /// Select Disney+
-        /// </summary>
-        public void InputDisney()
-        {
-            Debug.LogInformation(this, "InputDisney: ir command '{0}'", IrStandardCommands.Disney);
-            SendIrCommand(IrStandardCommands.Disney);
-        }
-
-        /// <summary>
-        /// Select Disney+ on press
-        /// </summary>
-        /// <param name="pressRelease"></param>
-        public void InputDisney(bool pressRelease)
-        {
-            if (pressRelease) return;
-            InputDisney();
-        }
-
-        /// <summary>
-        /// Select Samsung TV Plus
-        /// </summary>
-        public void InputSamsungTvPlus()
-        {
-            Debug.LogInformation(this, "InputSamsungTvPlus: ir command '{0}'", IrStandardCommands.SamsungTvPlus);
-            SendIrCommand(IrStandardCommands.SamsungTvPlus);
-        }
-
-        /// <summary>
-        /// Select Samsung TV Plus on press
-        /// </summary>
-        /// <param name="pressRelease"></param>
-        public void InputSamsungTvPlus(bool pressRelease)
-        {
-            if (pressRelease) return;
-            InputSamsungTvPlus();
         }
 
         public void InputToggle()
