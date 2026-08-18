@@ -14,8 +14,11 @@ public class FactoryMetadataTests
         var content = AssemblyFixture.FindSourceForClass(factoryClassName);
         content.Should().NotBeNull($"source for '{factoryClassName}' should exist");
 
-        Regex.IsMatch(content!, @"MinimumEssentialsFrameworkVersion\s*=\s*""3\.0\.0""")
-            .Should().BeTrue($"{factoryClassName} should set MinimumEssentialsFrameworkVersion to \"3.0.0\"");
+        // Must match the exact PepperDashEssentials version pinned in the csproj, not a bare
+        // "3.0.0" (no stable/GA 3.0.0 has shipped; semver ranks a prerelease/RC lower than the
+        // plain version, so a mismatched literal can fail the runtime compatibility gate).
+        Regex.IsMatch(content!, @"MinimumEssentialsFrameworkVersion\s*=\s*""3\.0\.0-rc\.1""")
+            .Should().BeTrue($"{factoryClassName} should set MinimumEssentialsFrameworkVersion to \"3.0.0-rc.1\", matching the pinned PackageReference");
     }
 
     [Theory]
