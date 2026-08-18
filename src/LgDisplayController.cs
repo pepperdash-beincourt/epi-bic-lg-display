@@ -96,16 +96,6 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 }
 
                 powerIsOn = value;
-
-                // When the panel confirms it is actually on, end the warm-up pulse immediately so
-                // feedback flips straight from "warming" to "on" instead of briefly showing "off"
-                // between the fixed warm-up timer expiring and this confirmation arriving. Cool-down
-                // is intentionally left on its timer (it also gates re-power-on).
-                if (powerIsOn)
-                {
-                    IsWarmingUp = false;
-                }
-
                 PowerIsOnFeedback.FireUpdate();
             }
         }
