@@ -44,7 +44,10 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         private ushort volumeLevelForSig;
         private readonly bool smallDisplay;
         private readonly bool overrideWol;
-        //private GenericUdpServer _woLServer;
+        private readonly string wolBroadcastAddress;
+        private readonly string wolMacAddress;
+        private readonly ushort wolPort;
+        private GenericUdpServer wolServer;
         private readonly LgDisplayPropertiesConfig config;
 
 
@@ -67,10 +70,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             upperLimit = props.volumeUpperLimit;
             lowerLimit = props.volumeLowerLimit;
             overrideWol = props.OverrideWol;
+            wolMacAddress = props.macAddress;
+            wolBroadcastAddress = props.WolBroadcastAddress;
+            wolPort = props.WolPort ?? 9;
             pollIntervalMs = props.pollIntervalMs > 1999 ? props.pollIntervalMs : 10000;
             coolingTimeMs = props.coolingTimeMs > 0 ? props.coolingTimeMs : 10000;
             warmingTimeMs = props.warmingTimeMs > 0 ? props.warmingTimeMs : 8000;
-            //UdpSocketKey = props.udpSocketKey;
 
             InputNumberFeedback = new IntFeedback(() =>
             {
@@ -570,7 +575,7 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             Communication.Connect();
 
-            if (isSerialComm || overrideWol)
+            if (isSerialComm || overrideWol || HasWakeOnLanConfiguration)
             {
                 CommunicationMonitor.Start();
             }
@@ -1017,6 +1022,8 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             var powerCommandSent = false;
 
+            SendWakeOnLan();
+
             if (isSerialComm || overrideWol)
             {
                 SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "1" : "01"));
@@ -1251,40 +1258,51 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         }
 
 
-        private void WolFunction(string macAddress)
+        private bool HasWakeOnLanConfiguration =>
+            !string.IsNullOrWhiteSpace(wolMacAddress) &&
+            !string.IsNullOrWhiteSpace(wolBroadcastAddress);
+
+        private void SendWakeOnLan()
         {
-            if (Regex.IsMatch(macAddress, @"^([0-9A-Fa-f]{2}[\.:-]){5}([0-9A-Fa-f]{2})$") ||
-                Regex.IsMatch(macAddress, @"^([0-9A-Fa-f]{12})"))
+            if (!HasWakeOnLanConfiguration)
             {
-                var address = Regex.Replace(macAddress, @"(-|:|\.)", "").ToLower();
-
-                var counter = 0;
-
-                var bytes = new byte[1024];
-
-                //Packet starts with 6 iterations of 0xFF
-                for (var i = 0; i < 6; i++)
-                {
-                    bytes[counter++] = 0xFF;
-                }
-
-                //Packet has 16 iterations of the mac address
-                for (var y = 0; y < 16; y++)
-                {
-                    var i = 0;
-                    for (var z = 0; z < 6; z++)
-                    {
-                        bytes[counter++] =
-                            byte.Parse(address.Substring(i, 2),
-                                NumberStyles.HexNumber);
-                        i += 2;
-                    }
-                }
+                this.LogWarning("Wake-on-LAN skipped: macAddress configured={HasMacAddress}, wolBroadcastAddress configured={HasBroadcastAddress}",
+                    !string.IsNullOrWhiteSpace(wolMacAddress), !string.IsNullOrWhiteSpace(wolBroadcastAddress));
                 return;
             }
 
-            this.LogVerbose("Invalid MAC Address sent to WolFunction - {MacAddress}", macAddress);
-            throw new ArgumentException("Invalid MAC Address");
+            var normalizedMacAddress = Regex.Replace(wolMacAddress, @"[-:.]", string.Empty);
+            if (!Regex.IsMatch(normalizedMacAddress, @"^[0-9A-Fa-f]{12}$"))
+            {
+                this.LogWarning("Wake-on-LAN is configured with an invalid MAC address: {MacAddress}", wolMacAddress);
+                return;
+            }
+
+            var macAddressBytes = Enumerable.Range(0, 6)
+                .Select(index => byte.Parse(normalizedMacAddress.Substring(index * 2, 2), NumberStyles.HexNumber))
+                .ToArray();
+            var magicPacket = new byte[102];
+
+            for (var index = 0; index < 6; index++)
+                magicPacket[index] = 0xFF;
+
+            for (var index = 6; index < magicPacket.Length; index += macAddressBytes.Length)
+                Buffer.BlockCopy(macAddressBytes, 0, magicPacket, index, macAddressBytes.Length);
+
+            wolServer ??= new GenericUdpServer(Key + "-wol", wolBroadcastAddress, wolPort, magicPacket.Length);
+            if (!wolServer.IsConnected)
+                wolServer.Connect();
+
+            if (!wolServer.IsConnected)
+            {
+                this.LogError("Wake-on-LAN UDP socket could not connect to {BroadcastAddress}:{Port}", wolBroadcastAddress, wolPort);
+                return;
+            }
+
+            for (var attempt = 0; attempt < 3; attempt++)
+                wolServer.SendBytes(magicPacket);
+
+            this.LogInformation("Wake-on-LAN magic packets sent to {BroadcastAddress}:{Port}", wolBroadcastAddress, wolPort);
         }
     }
 }
