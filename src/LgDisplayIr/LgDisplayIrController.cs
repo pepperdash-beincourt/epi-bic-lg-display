@@ -167,8 +167,23 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public override void PowerOn()
         {
+            if (SuppressPower("PowerOn")) return;
+
             Debug.LogInformation(this, "PowerOn: ir command '{0}'", IrStandardCommands.PowerOn);
             SendIrCommand(IrStandardCommands.PowerOn);
+        }
+
+        /// <summary>
+        /// True when this device is configured as a control-only remote, in which case it must never
+        /// send power - the paired driver that owns the panel owns power. Logged rather than silent,
+        /// because a suppressed power command is otherwise indistinguishable from a dead IR emitter.
+        /// </summary>
+        private bool SuppressPower(string caller)
+        {
+            if (!propertiesConfig.RemoteOnly) return false;
+
+            Debug.LogVerbose(this, "{0} suppressed: remoteOnly is set, so the paired display driver owns power", caller);
+            return true;
         }
 
         /// <summary>
@@ -187,6 +202,8 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public override void PowerOff()
         {
+            if (SuppressPower("PowerOff")) return;
+
             Debug.LogInformation(this, "PowerOff: ir command '{0}'", IrStandardCommands.PowerOff);
             SendIrCommand(IrStandardCommands.PowerOff);
         }
@@ -206,6 +223,8 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public override void PowerToggle()
         {
+            if (SuppressPower("PowerToggle")) return;
+
             Debug.LogInformation(this, "PowerToggle: ir command '{0}'", IrStandardCommands.PowerToggle);
             SendIrCommand(IrStandardCommands.PowerToggle);
         }
@@ -552,6 +571,14 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             // if already on, just send command
             SendIrCommand(cmd);
 
+            // A remote never powers the panel, so there is no power-on to wait on and nothing to
+            // re-send afterwards. Returning here also avoids the second SendIrCommand below, which
+            // for an app button would fire the same IR twice.
+            if (propertiesConfig.RemoteOnly)
+            {
+                Debug.LogVerbose(this, "ExecuteSwitch: remoteOnly is set, skipping the implicit PowerOn and warmup re-send");
+                return;
+            }
 
             // if warming up, wait for warmup to complete before sending command
             EventHandler<FeedbackEventArgs> handler = null; // necessary to allow reference inside lambda to handler
