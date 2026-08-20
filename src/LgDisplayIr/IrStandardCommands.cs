@@ -123,12 +123,53 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             { nameof(Sleep), Sleep }
         };
 
+        // The front end selects an input or app by its key in LgDisplayIrController.Inputs
+        // ("primeVideo", "hdmi1", ...), and those keys are not command names. Most of them happen to
+        // equal the .ir file's button label case-insensitively - "netflix" is "Netflix", "hdmi1" is
+        // "HDMI1", "tv" is "TV" - so they resolved by coincidence rather than by design. "primeVideo"
+        // is where the coincidence runs out: the file labels it "Prime_Video" and its standard
+        // command is "AMAZON_VIDEO", so the key matched neither and every Prime Video tap logged
+        // "IR Driver ... does not contain command primeVideo" (verified on the bench 2026-08-19).
+        // Map the keys explicitly so no button depends on its name happening to line up.
+        public static readonly Dictionary<string, string> InputKeyCommands = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "hdmi1", InputHdmi1 },
+            { "hdmi2", InputHdmi2 },
+            { "hdmi3", InputHdmi3 },
+            { "hdmi4", InputHdmi4 },
+            { "tv", InputTv },
+            { "antenna", InputAntenna },
+            { "netflix", Netflix },
+            { "primeVideo", PrimeVideo }
+        };
+
         public static string GetCommandValue(string commandName)
         {
             Debug.LogInformation("IrStandardCommands: GetCommandValue() called for commandName-'{0}'", commandName);
             if (CommandDictionary.TryGetValue(commandName, out var value))
                 return value;
             return null;
+        }
+
+        /// <summary>
+        /// Resolves whatever a caller supplied - an <see cref="InputKeyCommands"/> input key, a
+        /// constant name from <see cref="CommandDictionary"/>, or an already-resolved standard
+        /// command - to the command name to hand the IR port. Resolution is idempotent: passing a
+        /// standard command back in returns it unchanged. Anything unrecognized also passes through
+        /// unchanged, so a hand-written selector still reaches the driver and its own error log.
+        /// </summary>
+        public static string Resolve(string selector)
+        {
+            if (string.IsNullOrEmpty(selector))
+                return selector;
+
+            if (InputKeyCommands.TryGetValue(selector, out var byInputKey))
+                return byInputKey;
+
+            if (CommandDictionary.TryGetValue(selector, out var byConstantName))
+                return byConstantName;
+
+            return selector;
         }
     }
 }

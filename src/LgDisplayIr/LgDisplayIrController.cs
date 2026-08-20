@@ -152,10 +152,19 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 return;
             }
 
-            Debug.LogInformation(this, "SendIrCommand: ir command '{0}'", cmd);
+            // Resolved here rather than at each call site: ExecuteSwitch's string branch passes an
+            // Inputs key straight through, and doing it once means no future caller can bypass it.
+            // Resolution is idempotent, so the PowerOn/Menu/dpad paths that already pass standard
+            // commands are unaffected.
+            var resolved = IrStandardCommands.Resolve(cmd);
 
-            irController?.PressRelease(cmd, true);
-            irController?.PressRelease(cmd, false);
+            if (!string.Equals(resolved, cmd, StringComparison.Ordinal))
+                Debug.LogVerbose(this, "SendIrCommand: resolved selector '{0}' to ir command '{1}'", cmd, resolved);
+
+            Debug.LogInformation(this, "SendIrCommand: ir command '{0}'", resolved);
+
+            irController?.PressRelease(resolved, true);
+            irController?.PressRelease(resolved, false);
         }
 
 
