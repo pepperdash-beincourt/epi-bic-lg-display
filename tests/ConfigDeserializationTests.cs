@@ -32,6 +32,8 @@ public class ConfigDeserializationTests
     [InlineData("warmingTimeMs")]
     [InlineData("udpSocketKey")]
     [InlineData("macAddress")]
+    [InlineData("wolBroadcastAddress")]
+    [InlineData("wolPort")]
     [InlineData("smallDisplay")]
     [InlineData("overrideWol")]
     [InlineData("friendlyNames")]
@@ -54,9 +56,11 @@ public class ConfigDeserializationTests
     }
 
     [Theory]
-    [InlineData("Id",          "String")]
+    [InlineData("Id", "String")]
     [InlineData("SmallDisplay", "Boolean")]
-    [InlineData("OverrideWol",  "Boolean")]
+    [InlineData("OverrideWol", "Boolean")]
+    [InlineData("WolBroadcastAddress", "String")]
+    [InlineData("WolPort", "Nullable`1")]
     public void Config_Property_Type_Matches(string propertyName, string expectedTypeName)
     {
         var prop = ConfigType.Value!.GetProperty(propertyName);
@@ -86,6 +90,8 @@ public class ConfigDeserializationTests
             "warmingTimeMs": 15000,
             "udpSocketKey": "udpKey",
             "macAddress": "00:11:22:33:44:55",
+            "wolBroadcastAddress": "192.168.100.255",
+            "wolPort": 9,
             "smallDisplay": false,
             "overrideWol": false,
             "friendlyNames": [ { "inputKey": "hdmi1", "name": "Laptop", "hideInput": false } ]
@@ -98,6 +104,7 @@ public class ConfigDeserializationTests
         var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(SampleJson);
         dict.Should().ContainKey("id");
         dict.Should().ContainKey("macAddress");
+        dict.Should().ContainKey("wolBroadcastAddress");
         dict.Should().ContainKey("friendlyNames");
     }
 
