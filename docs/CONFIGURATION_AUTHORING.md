@@ -18,7 +18,9 @@ The display key is reused by participant `video.displayKey`, destination-list `s
 
 ## Source-declared configuration facts
 
-`Id`, volume limits, poll/cooling/warming timing, `udpSocketKey`, `macAddress`, `SmallDisplay`, `OverrideWol`, and `FriendlyNames` are source-declared. Friendly-name entries declare `InputKey`, `Name`, and `HideInput`.
+`Id`, volume limits, poll/cooling/warming timing, `udpSocketKey`, `macAddress`, `WolBroadcastAddress`, `WolPort`, `SmallDisplay`, `OverrideWol`, and `FriendlyNames` are source-declared. Friendly-name entries declare `InputKey`, `Name`, and `HideInput`.
+
+Wake-on-LAN magic packets are sent only when both `macAddress` and `wolBroadcastAddress` (the IPv4 broadcast address of the display's subnet) are set. `wolPort` is the UDP destination port for the magic packet and defaults to `9` when omitted.
 
 ## Safe structural example
 
@@ -38,6 +40,9 @@ The display key is reused by participant `video.displayKey`, destination-list `s
     "pollIntervalMs": 5000,
     "coolingTimeMs": 0,
     "warmingTimeMs": 0,
+    "macAddress": "<display-mac-address>",
+    "wolBroadcastAddress": "<subnet-broadcast-address>",
+    "wolPort": 9,
     "smallDisplay": false,
     "overrideWol": false,
     "friendlyNames": [ { "inputKey": "<input-id>", "name": "Local HDMI", "hideInput": false } ]

@@ -8,7 +8,7 @@
 | Repository | `epi-lg-display` |
 | Source file | [`src/LgDisplayController.cs`](../../../src/LgDisplayController.cs) |
 | Language | C# |
-| Declaration | `class LgDisplayController` with declared base/contract list `TwoWayDisplayBase, IBasicVolumeWithFeedback, ICommunicationMonitor,` |
+| Declaration | `class LgDisplayController` with declared base/contract list `TwoWayDisplayBase, IBasicVolumeWithFeedback, ICommunicationMonitor, IBridgeAdvanced, IHasInputs<string>, IBasicVideoMuteWithFeedback, IWarmingCooling` |
 | Accessibility | `public` |
 | Namespace/module | `PepperDash.Essentials.Plugins.Lg.Display` |
 
@@ -22,7 +22,7 @@ The type exists to provide a named boundary in the codebase. Its inheritance, im
 
 ## How it works
 
-Preserve the declared inheritance/contract relationship: `TwoWayDisplayBase, IBasicVolumeWithFeedback, ICommunicationMonitor,`. Public methods declared in this source file include: `SetVolume`, `MuteOn`, `MuteOff`, `MuteToggle`, `VolumeDown`, `VolumeUp`, `VideoMuteOn`, `VideoMuteOff`, `VideoMuteToggle`, `VideoMuteGet`, `LinkToApi`, `SendData`. Use repository search to identify callers, implementers, serializers, tests, and configuration references before changing a public name or shape.
+Preserve the declared inheritance/contract relationship: `TwoWayDisplayBase, IBasicVolumeWithFeedback, ICommunicationMonitor, IBridgeAdvanced, IHasInputs<string>, IBasicVideoMuteWithFeedback, IWarmingCooling`. Public methods declared in this source file include: `SetVolume`, `MuteOn`, `MuteOff`, `MuteToggle`, `VolumeDown`, `VolumeUp`, `VideoMuteOn`, `VideoMuteOff`, `VideoMuteToggle`, `VideoMuteGet`, `LinkToApi`, `SendData`. Use repository search to identify callers, implementers, serializers, tests, and configuration references before changing a public name or shape.
 
 ## When to modify it
 
