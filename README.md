@@ -63,6 +63,31 @@ This repo contains a plugin for use with [PepperDash Essentials](https://github.
 
 The `smallDisplay` configuration option is used to control padding of the power on command. If `smallDisplay` is `true`, the power on command sent will be `ka 01 1`. If `smallDisplay` is `false`, the power on command sent will be `ka 01 01`.
 
+### Network IP control with a keycode
+
+webOS displays with an **IP Control Setup** menu accept network commands only when they are encrypted with the keycode that menu generates. Turn on **Network IP Control**, press **Generate Keycode**, and set `keycode` to the eight characters shown. Pressing **Generate Keycode** again replaces the keycode, so the config must be updated afterwards.
+
+```json
+"properties": {
+  "keycode": "<keycode>",
+  "macAddress": "<display-mac-address>",
+  "wolBroadcastAddress": "<subnet-broadcast-address>",
+  "control": {
+    "method": "tcpIp",
+    "tcpSshProperties": { "address": "<display-address>", "port": 9761, "autoReconnect": true }
+  }
+}
+```
+
+With a keycode set:
+
+- Power off, HDMI 1-4 input selection, volume, volume mute and video mute use the display's network command set.
+- Power on uses Wake-on-LAN only, so `macAddress` and `wolBroadcastAddress` are required and **Wake On LAN** must be on in the display menu.
+- Polling reports power and the current HDMI input, volume and mute. Video mute feedback follows the commands sent, because the display has no query for it.
+- `id` and `smallDisplay` are not used. DisplayPort is not available.
+
+Without a keycode, a TCP connection uses the serial command set unchanged.
+
 For more configuration information, see the [PepperDash Essentials wiki](https://github.com/PepperDash/Essentials/wiki).
 
 ## Github Actions

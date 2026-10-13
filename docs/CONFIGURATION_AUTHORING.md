@@ -22,6 +22,8 @@ The display key is reused by participant `video.displayKey`, destination-list `s
 
 Wake-on-LAN magic packets are sent only when both `macAddress` and `wolBroadcastAddress` (the IPv4 broadcast address of the display's subnet) are set. `wolPort` is the UDP destination port for the magic packet and defaults to `9` when omitted.
 
+`keycode` is the eight-character code from the display's IP Control Setup menu. On a TCP connection to port 9761 it switches the device to the display's encrypted network command set; on a serial connection it is ignored. With a keycode, power on is Wake-on-LAN only, so `macAddress` and `wolBroadcastAddress` are required. Treat the keycode as a credential: keep real values out of shared documentation, and update the config whenever the display generates a new one.
+
 ## Safe structural example
 
 ```json

@@ -36,6 +36,7 @@ public class ConfigDeserializationTests
     [InlineData("wolPort")]
     [InlineData("smallDisplay")]
     [InlineData("overrideWol")]
+    [InlineData("keycode")]
     [InlineData("friendlyNames")]
     public void Config_Property_Has_JsonPropertyAttribute(string jsonName)
     {
@@ -61,6 +62,7 @@ public class ConfigDeserializationTests
     [InlineData("OverrideWol", "Boolean")]
     [InlineData("WolBroadcastAddress", "String")]
     [InlineData("WolPort", "Nullable`1")]
+    [InlineData("Keycode", "String")]
     public void Config_Property_Type_Matches(string propertyName, string expectedTypeName)
     {
         var prop = ConfigType.Value!.GetProperty(propertyName);

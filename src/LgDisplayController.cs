@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.DeviceSupport;
 using Epi.Display.Lg;
@@ -13,6 +15,7 @@ using PepperDash.Essentials.Core.Bridges;
 using PepperDash.Essentials.Core.DeviceTypeInterfaces;
 using PepperDash.Essentials.Core.Queues;
 using TwoWayDisplayBase = PepperDash.Essentials.Devices.Common.Displays.TwoWayDisplayBase;
+using Interlocked = System.Threading.Interlocked;
 
 
 namespace PepperDash.Essentials.Plugins.Lg.Display
@@ -50,6 +53,19 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         private GenericUdpServer wolServer;
         private readonly LgDisplayPropertiesConfig config;
 
+        // Keycode-secured network IP control (webOS displays with an IP Control Setup menu). The display
+        // answers one command at a time without echoing it, so commands are sent strictly in sequence.
+        private const int IpControlResponseTimeoutMs = 3000;
+        private const int IpControlQueueCapacity = 50;
+        private const string IpControlVolumePlaceholder = "VOLUME_CONTROL";
+        private LgIpControlCipher ipControlCipher;
+        private BlockingCollection<string> ipControlCommands;
+        private readonly object ipControlLock = new object();
+        private readonly AutoResetEvent ipControlResponseReceived = new AutoResetEvent(false);
+        private string ipControlCommandInFlight;
+        private string queuedIpControlVolumeCommand;
+        private bool ipControlDecryptWarningLogged;
+
 
         public LgDisplayController(string key, string name, LgDisplayPropertiesConfig config, IBasicCommunication comms)
             : base(key, name)
@@ -76,6 +92,20 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             pollIntervalMs = props.pollIntervalMs > 1999 ? props.pollIntervalMs : 10000;
             coolingTimeMs = props.coolingTimeMs > 0 ? props.coolingTimeMs : 10000;
             warmingTimeMs = props.warmingTimeMs > 0 ? props.warmingTimeMs : 8000;
+
+            if (!string.IsNullOrWhiteSpace(props.Keycode))
+            {
+                var keycode = props.Keycode.Trim().ToUpperInvariant();
+                if (LgIpControlCipher.IsValidKeycode(keycode))
+                {
+                    ipControlCipher = new LgIpControlCipher(keycode);
+                }
+                else
+                {
+                    this.LogError("The keycode must be the {Length} letters and digits shown under IP Control Setup on the display; keycode control is disabled",
+                        LgIpControlCipher.KeycodeLength);
+                }
+            }
 
             InputNumberFeedback = new IntFeedback(() =>
             {
@@ -255,6 +285,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 scaled = (int)NumericalHelpers.Scale(level, 0, 65535, lowerLimit, upperLimit);
             }
 
+            if (UsesIpControlKeycode)
+            {
+                SendIpControlVolume(scaled);
+                return;
+            }
+
             SendData(string.Format("kf {0} {1}", Id, scaled));
         }
 
@@ -263,6 +299,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void MuteOn()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("VOLUME_MUTE on");
+                return;
+            }
+
             SendData(string.Format("ke {0} {1}", Id, smallDisplay ? "0" : "00"));
         }
 
@@ -271,6 +313,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void MuteOff()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("VOLUME_MUTE off");
+                return;
+            }
+
             SendData(string.Format("ke {0} {1}", Id, smallDisplay ? "1" : "01"));
         }
 
@@ -336,6 +384,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void VideoMuteOn()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("SCREEN_MUTE videomuteon");
+                return;
+            }
+
             SendData(string.Format("kd {0} {1}", Id, smallDisplay ? "1" : "01"));
         }
 
@@ -344,6 +398,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void VideoMuteOff()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("SCREEN_MUTE allmuteoff");
+                return;
+            }
+
             SendData(string.Format("kd {0} {1}", Id, smallDisplay ? "0" : "00"));
         }
 
@@ -364,6 +424,9 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
 
         public void VideoMuteGet()
         {
+            // Keycode IP control has no video mute query; feedback follows the commands sent.
+            if (UsesIpControlKeycode) return;
+
             SendData(string.Format("kd {0} FF", Id));
         }
 
@@ -500,19 +563,35 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 ScaleVolume = true;
             }
 
-            PortGather = new CommunicationGather(Communication, "x");
-            PortGather.LineReceived += PortGather_LineReceived;
-
             var socket = Communication as ISocketStatus;
             if (socket != null)
             {
                 //This Instance Uses IP Control
-                this.LogVerbose("The LG Display Plugin does NOT support IP Control currently");
+                if (UsesIpControlKeycode)
+                {
+                    SetupIpControl(socket);
+                }
+                else
+                {
+                    this.LogVerbose("The LG Display Plugin does NOT support IP Control currently");
+                }
             }
             else
             {
                 // This instance uses RS-232 Control
                 isSerialComm = true;
+
+                if (UsesIpControlKeycode)
+                {
+                    this.LogWarning("A keycode only applies to network control; ignoring it for this serial connection");
+                    ipControlCipher = null;
+                }
+            }
+
+            if (!UsesIpControlKeycode)
+            {
+                PortGather = new CommunicationGather(Communication, "x");
+                PortGather.LineReceived += PortGather_LineReceived;
             }
 
             var pollInterval = pollIntervalMs > 0 ? pollIntervalMs : 10000;
@@ -575,12 +654,183 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             Communication.Connect();
 
-            if (isSerialComm || overrideWol || HasWakeOnLanConfiguration)
+            if (isSerialComm || overrideWol || HasWakeOnLanConfiguration || UsesIpControlKeycode)
             {
                 CommunicationMonitor.Start();
             }
 
             return base.CustomActivate();
+        }
+
+        private bool UsesIpControlKeycode => ipControlCipher != null;
+
+        private void SetupIpControl(ISocketStatus socket)
+        {
+            this.LogInformation("Using keycode-secured network IP control");
+
+            ipControlCommands = new BlockingCollection<string>(IpControlQueueCapacity);
+
+            ipControlCipher.ResponseReceived += response =>
+            {
+                string command;
+                lock (ipControlLock)
+                {
+                    command = ipControlCommandInFlight;
+                    ipControlCommandInFlight = null;
+                }
+
+                ipControlDecryptWarningLogged = false;
+                receiveQueue.Enqueue(new ProcessStringMessage(response, r => ProcessIpControlResponse(command, r)));
+                ipControlResponseReceived.Set();
+            };
+
+            ipControlCipher.UndecryptableResponse += () =>
+            {
+                if (ipControlDecryptWarningLogged) return;
+                ipControlDecryptWarningLogged = true;
+                this.LogWarning("Could not decrypt a response from the display; check that the keycode matches the one shown under IP Control Setup");
+            };
+
+            Communication.BytesReceived += (sender, args) => ipControlCipher.Receive(args.Bytes);
+            socket.ConnectionChange += (sender, args) =>
+            {
+                ipControlCipher.Reset();
+
+                // A display that drops off the network has gone to standby; it can only be woken by Wake-on-LAN.
+                if (!args.Client.IsConnected && !IsWarmingUp)
+                    PowerIsOn = false;
+            };
+
+            new Thread(ProcessIpControlCommands) { IsBackground = true, Name = Key + "-ipcontrol" }.Start();
+        }
+
+        private void SendIpControl(string command)
+        {
+            if (!ipControlCommands.TryAdd(command))
+            {
+                this.LogWarning("IP control command queue is full; dropping {Command}", command);
+            }
+        }
+
+        // Volume ramps send a level every few tens of milliseconds; only the latest level is worth sending.
+        private void SendIpControlVolume(int level)
+        {
+            var command = string.Format("{0} {1}", IpControlVolumePlaceholder, Math.Max(0, Math.Min(100, level)));
+            if (Interlocked.Exchange(ref queuedIpControlVolumeCommand, command) == null)
+            {
+                SendIpControl(IpControlVolumePlaceholder);
+            }
+        }
+
+        private void ProcessIpControlCommands()
+        {
+            foreach (var queued in ipControlCommands.GetConsumingEnumerable())
+            {
+                var command = queued == IpControlVolumePlaceholder
+                    ? Interlocked.Exchange(ref queuedIpControlVolumeCommand, null)
+                    : queued;
+
+                if (command == null) continue;
+
+                try
+                {
+                    if (!Communication.IsConnected)
+                    {
+                        this.LogVerbose("Not connected; skipping {Command}", command);
+                        continue;
+                    }
+
+                    lock (ipControlLock)
+                    {
+                        ipControlCommandInFlight = command;
+                    }
+
+                    ipControlResponseReceived.Reset();
+                    Communication.SendBytes(ipControlCipher.Encrypt(command));
+
+                    if (!ipControlResponseReceived.WaitOne(IpControlResponseTimeoutMs))
+                    {
+                        lock (ipControlLock)
+                        {
+                            ipControlCommandInFlight = null;
+                        }
+
+                        this.LogVerbose("No response to {Command}", command);
+                    }
+                }
+                catch (Exception e)
+                {
+                    this.LogError("Error sending {Command}: {Error}", command, e.Message);
+                }
+            }
+        }
+
+        private void ProcessIpControlResponse(string command, string response)
+        {
+            if (command == null)
+            {
+                this.LogVerbose("Unsolicited response: {Response}", response);
+                return;
+            }
+
+            var verb = command.Split(' ')[0];
+            switch (verb)
+            {
+                case "CURRENT_APP":
+                    UpdateIpControlAppFb(response);
+                    break;
+                case "CURRENT_VOL":
+                    {
+                        var match = Regex.Match(response, @"^VOL:(\d+)$");
+                        if (match.Success)
+                            ApplyVolumeFb(int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture));
+                        else
+                            this.LogVerbose("Unable to parse volume response: {Response}", response);
+                        break;
+                    }
+                case "MUTE_STATE":
+                    {
+                        var match = Regex.Match(response, @"^MUTE:(on|off)$", RegexOptions.IgnoreCase);
+                        if (match.Success)
+                            IsMuted = match.Groups[1].Value.Equals("on", StringComparison.OrdinalIgnoreCase);
+                        else
+                            this.LogVerbose("Unable to parse mute response: {Response}", response);
+                        break;
+                    }
+                case "VOLUME_MUTE":
+                    if (response == "OK")
+                        IsMuted = command.EndsWith(" on", StringComparison.Ordinal);
+                    break;
+                case "SCREEN_MUTE":
+                    if (response == "OK")
+                        VideoIsMuted = !command.EndsWith(" allmuteoff", StringComparison.Ordinal);
+                    break;
+            }
+
+            if (response != "OK" && (verb == "POWER" || verb == "INPUT_SELECT" || verb == "VOLUME_CONTROL" || verb == "VOLUME_MUTE" || verb == "SCREEN_MUTE"))
+            {
+                this.LogWarning("Display rejected {Command}: {Response}", command, response);
+            }
+        }
+
+        // CURRENT_APP returns nothing while the display is in standby, otherwise the foreground app,
+        // e.g. "APP:com.webos.app.hdmi2 Hot plug:Connected Signal:Yes ...".
+        private void UpdateIpControlAppFb(string response)
+        {
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                PowerIsOn = false;
+                return;
+            }
+
+            PowerIsOn = true;
+
+            var match = Regex.Match(response, @"^APP:com\.webos\.app\.hdmi([1-4])\b", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                var hdmi = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+                UpdateInputFb((0x90 + hdmi - 1).ToString("x2"));
+            }
         }
 
         private void SetupInputs()
@@ -833,6 +1083,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void MuteGet()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("MUTE_STATE");
+                return;
+            }
+
             SendData(string.Format("ke {0} FF", Id));
         }
 
@@ -841,6 +1097,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void VolumeGet()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("CURRENT_VOL");
+                return;
+            }
+
             SendData(string.Format("kf {0} FF", Id));
         }
 
@@ -849,6 +1111,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void InputHdmi1()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("INPUT_SELECT hdmi1");
+                return;
+            }
+
             SendData(string.Format("xb {0} 90", Id));
         }
 
@@ -857,6 +1125,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void InputHdmi2()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("INPUT_SELECT hdmi2");
+                return;
+            }
+
             SendData(string.Format("xb {0} 91", Id));
         }
 
@@ -865,6 +1139,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void InputHdmi3()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("INPUT_SELECT hdmi3");
+                return;
+            }
+
             SendData(string.Format("xb {0} 92", Id));
         }
 
@@ -873,6 +1153,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void InputHdmi4()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("INPUT_SELECT hdmi4");
+                return;
+            }
+
             SendData(string.Format("xb {0} 93", Id));
         }
 
@@ -881,6 +1167,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void InputDisplayPort1()
         {
+            if (UsesIpControlKeycode)
+            {
+                this.LogWarning("Keycode IP control has no DisplayPort input");
+                return;
+            }
+
             SendData(string.Format("xb {0} C0", Id));
         }
 
@@ -889,6 +1181,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void InputGet()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("CURRENT_APP");
+                return;
+            }
+
             SendData(string.Format("xb {0} FF", Id));
         }
 
@@ -1024,7 +1322,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
 
             SendWakeOnLan();
 
-            if (isSerialComm || overrideWol)
+            if (UsesIpControlKeycode)
+            {
+                // Keycode IP control cannot power a display on; Wake-on-LAN is the only way.
+                powerCommandSent = HasWakeOnLanConfiguration;
+            }
+            else if (isSerialComm || overrideWol)
             {
                 SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "1" : "01"));
                 powerCommandSent = true;
@@ -1041,7 +1344,10 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             var wasPowerOn = PowerIsOn;
 
-            SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "0" : "00"));
+            if (UsesIpControlKeycode)
+                SendIpControl("POWER off");
+            else
+                SendData(string.Format("ka {0} {1}", Id, smallDisplay ? "0" : "00"));
 
             IsWarmingUp = false;
 
@@ -1056,6 +1362,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void PowerGet()
         {
+            if (UsesIpControlKeycode)
+            {
+                SendIpControl("CURRENT_APP");
+                return;
+            }
+
             SendData(string.Format("ka {0} FF", Id));
         }
 
@@ -1145,7 +1457,22 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             try
             {
-                var vol = int.Parse(s, NumberStyles.HexNumber);
+                ApplyVolumeFb(int.Parse(s, NumberStyles.HexNumber));
+            }
+            catch (Exception e)
+            {
+                this.LogVerbose("Error updating volumefb for value: {Value}: {Error}", s, e);
+            }
+        }
+
+        /// <summary>
+        /// Updates volume feedback from a display volume of 0-100
+        /// </summary>
+        /// <param name="vol">display volume</param>
+        private void ApplyVolumeFb(int vol)
+        {
+            try
+            {
                 ushort newVol;
                 if (!ScaleVolume)
                 {
@@ -1169,7 +1496,7 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             }
             catch (Exception e)
             {
-                this.LogVerbose("Error updating volumefb for value: {Value}: {Error}", s, e);
+                this.LogVerbose("Error updating volumefb for value: {Value}: {Error}", vol, e);
             }
         }
 
@@ -1240,6 +1567,19 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         /// </summary>
         public void StatusGet()
         {
+            if (UsesIpControlKeycode)
+            {
+                // Commands are already sent one at a time, so no spacing is needed between polls.
+                PowerGet();
+
+                if (!PowerIsOn || IsWarmingUp || IsCoolingDown)
+                    return;
+
+                VolumeGet();
+                MuteGet();
+                return;
+            }
+
             //SendBytes(new byte[] { Header, StatusControlCmd, 0x00, 0x00, StatusControlGet, 0x00 });
             CrestronInvoke.BeginInvoke((o) =>
                 {

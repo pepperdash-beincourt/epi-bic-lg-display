@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The cipher has no Crestron dependencies, so it is compiled into the tests and run directly. -->
+    <Compile Include="..\src\LgIpControlCipher.cs" Link="Linked\LgIpControlCipher.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Builds the plugin before tests run; DLL is loaded via MetadataLoadContext, not referenced. -->
     <ProjectReference Include="..\src\epi-display-lg.4Series.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>

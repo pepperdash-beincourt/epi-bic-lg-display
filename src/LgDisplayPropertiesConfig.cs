@@ -42,6 +42,13 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         [JsonProperty("overrideWol")]
         public bool OverrideWol { get; set; }
 
+        /// <summary>
+        /// Keycode from the display's IP Control Setup menu. When set on a TCP connection (port 9761),
+        /// commands use the display's encrypted network IP control protocol instead of the serial command set.
+        /// </summary>
+        [JsonProperty("keycode")]
+        public string Keycode { get; set; }
+
         [JsonProperty("friendlyNames")]
         public List<FriendlyName> FriendlyNames { get; set; }
 
