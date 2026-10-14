@@ -65,6 +65,9 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         private string ipControlCommandInFlight;
         private string queuedIpControlVolumeCommand;
         private bool ipControlDecryptWarningLogged;
+        // POWER_STATUS gives the real power state; until a display has answered it, CURRENT_APP stands in.
+        private bool ipControlPowerStatusSupported;
+        private string lastIpControlPowerStatus;
 
 
         public LgDisplayController(string key, string name, LgDisplayPropertiesConfig config, IBasicCommunication comms)
@@ -776,6 +779,9 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             var verb = command.Split(' ')[0];
             switch (verb)
             {
+                case "POWER_STATUS":
+                    UpdateIpControlPowerFb(response);
+                    break;
                 case "CURRENT_APP":
                     UpdateIpControlAppFb(response);
                     break;
@@ -805,6 +811,11 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                     if (response == "OK")
                         VideoIsMuted = !command.EndsWith(" allmuteoff", StringComparison.Ordinal);
                     break;
+                case "POWER":
+                    // The display accepted power off, so show it off now rather than at the next poll.
+                    if (response == "OK" && command == "POWER off")
+                        PowerIsOn = false;
+                    break;
             }
 
             if (response != "OK" && (verb == "POWER" || verb == "INPUT_SELECT" || verb == "VOLUME_CONTROL" || verb == "VOLUME_MUTE" || verb == "SCREEN_MUTE"))
@@ -813,17 +824,41 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
             }
         }
 
-        // CURRENT_APP returns nothing while the display is in standby, otherwise the foreground app,
-        // e.g. "APP:com.webos.app.hdmi2 Hot plug:Connected Signal:Yes ...".
-        private void UpdateIpControlAppFb(string response)
+        // POWER_STATUS answers "Power Status: active" when the display is on, and something else
+        // (e.g. "always ready") in network standby, where the display keeps answering commands.
+        private void UpdateIpControlPowerFb(string response)
         {
-            if (string.IsNullOrWhiteSpace(response))
+            var match = Regex.Match(response ?? string.Empty, @"Power\s*Status\s*:\s*(.+)$", RegexOptions.IgnoreCase);
+            if (!match.Success)
             {
-                PowerIsOn = false;
+                if (!ipControlPowerStatusSupported)
+                    this.LogVerbose("Unrecognized POWER_STATUS response, using CURRENT_APP for power: {Response}", response);
                 return;
             }
 
-            PowerIsOn = true;
+            ipControlPowerStatusSupported = true;
+            var status = match.Groups[1].Value.Trim();
+            if (!string.Equals(status, lastIpControlPowerStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                lastIpControlPowerStatus = status;
+                this.LogInformation("Display reports power status '{Status}'", status);
+            }
+
+            PowerIsOn = status.StartsWith("active", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // CURRENT_APP returns the foreground app, e.g. "APP:com.webos.app.hdmi2 Hot plug:Connected Signal:Yes ...".
+        // A display in network standby can still report an app, so this only sets power until the
+        // display has answered POWER_STATUS.
+        private void UpdateIpControlAppFb(string response)
+        {
+            this.LogDebug("CURRENT_APP: {Response}", response);
+
+            if (!ipControlPowerStatusSupported)
+                PowerIsOn = !string.IsNullOrWhiteSpace(response);
+
+            if (string.IsNullOrWhiteSpace(response))
+                return;
 
             var match = Regex.Match(response, @"^APP:com\.webos\.app\.hdmi([1-4])\b", RegexOptions.IgnoreCase);
             if (match.Success)
@@ -1364,7 +1399,7 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         {
             if (UsesIpControlKeycode)
             {
-                SendIpControl("CURRENT_APP");
+                SendIpControl("POWER_STATUS");
                 return;
             }
 
@@ -1572,9 +1607,15 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 // Commands are already sent one at a time, so no spacing is needed between polls.
                 PowerGet();
 
+                // Until the display has answered POWER_STATUS, CURRENT_APP stands in for power.
+                if (!ipControlPowerStatusSupported)
+                    InputGet();
+
                 if (!PowerIsOn || IsWarmingUp || IsCoolingDown)
                     return;
 
+                if (ipControlPowerStatusSupported)
+                    InputGet();
                 VolumeGet();
                 MuteGet();
                 return;
