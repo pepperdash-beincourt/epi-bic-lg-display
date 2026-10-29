@@ -23,6 +23,8 @@
   <ItemGroup>
     <!-- The cipher has no Crestron dependencies, so it is compiled into the tests and run directly. -->
     <Compile Include="..\src\LgIpControlCipher.cs" Link="Linked\LgIpControlCipher.cs" />
+    <!-- So is the serial number and software version reply parse. -->
+    <Compile Include="..\src\LgDeviceInfoReply.cs" Link="Linked\LgDeviceInfoReply.cs" />
   </ItemGroup>
 
   <ItemGroup>

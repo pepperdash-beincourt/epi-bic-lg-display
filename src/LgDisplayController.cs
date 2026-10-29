@@ -12,6 +12,7 @@ using PepperDash.Core;
 using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
+using PepperDash.Essentials.Core.DeviceInfo;
 using PepperDash.Essentials.Core.DeviceTypeInterfaces;
 using PepperDash.Essentials.Core.Queues;
 using TwoWayDisplayBase = PepperDash.Essentials.Devices.Common.Displays.TwoWayDisplayBase;
@@ -21,8 +22,17 @@ using Interlocked = System.Threading.Interlocked;
 namespace PepperDash.Essentials.Plugins.Lg.Display
 {
     public class LgDisplayController : TwoWayDisplayBase, IBasicVolumeWithFeedback, ICommunicationMonitor,
-        IBridgeAdvanced, IHasInputs<string>, IBasicVideoMuteWithFeedback, IWarmingCooling
+        IBridgeAdvanced, IHasInputs<string>, IBasicVideoMuteWithFeedback, IWarmingCooling, IDeviceInfoProvider
     {
+        /// <summary>
+        /// The display's address and configured MAC address, and the serial number and software
+        /// version it reports. One instance for the life of the device, so what is written to it is
+        /// what readers see.
+        /// </summary>
+        public DeviceInfo DeviceInfo { get; } = new DeviceInfo();
+
+        public event DeviceInfoChangeHandler DeviceInfoChanged;
+
         GenericQueue receiveQueue;
         public const int InputPowerOn = 101;
         public const int InputPowerOff = 102;
@@ -115,7 +125,49 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 return InputNumber;
             });
 
+            if (comms is GenericTcpIpClient tcp && !string.IsNullOrEmpty(tcp.Hostname))
+            {
+                DeviceInfo.IpAddress = tcp.Hostname;
+                DeviceInfo.HostName = tcp.Hostname;
+            }
+
+            // The address Wake-on-LAN is configured with, until the display says otherwise.
+            DeviceInfo.MacAddress = LgDeviceInfoReply.FormatMac(wolMacAddress);
+
             Init();
+        }
+
+        /// <summary>
+        /// Asks the display for its serial number and software version. The plain command set only;
+        /// the keycode protocol has no such query, so a display controlled that way reports its
+        /// address and configured MAC address alone.
+        /// </summary>
+        public void UpdateDeviceInfo()
+        {
+            if (UsesIpControlKeycode)
+            {
+                return;
+            }
+
+            SendData(LgDeviceInfoReply.SerialNumberQuery(Id));
+            SendData(LgDeviceInfoReply.SoftwareVersionQuery(Id));
+        }
+
+        /// <summary>Asks again only while something is still missing, so polling stays as it was.</summary>
+        private void UpdateDeviceInfoIfMissing()
+        {
+            if (string.IsNullOrEmpty(DeviceInfo.SerialNumber) || string.IsNullOrEmpty(DeviceInfo.FirmwareVersion))
+            {
+                UpdateDeviceInfo();
+            }
+        }
+
+        private void SetDeviceInfo(Action<DeviceInfo> set, string value)
+        {
+            if (value == null) return;
+
+            set(DeviceInfo);
+            DeviceInfoChanged?.Invoke(this, new DeviceInfoEventArgs(DeviceInfo));
         }
 
         public IBasicCommunication Communication { get; private set; }
@@ -135,6 +187,12 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
 
                 powerIsOn = value;
                 PowerIsOnFeedback.FireUpdate();
+
+                // Some displays answer the identity queries only when on, so ask again at power on.
+                if (powerIsOn)
+                {
+                    UpdateDeviceInfoIfMissing();
+                }
             }
         }
 
@@ -910,6 +968,11 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
         private void CommunicationMonitor_StatusChange(object sender, MonitorStatusChangeEventArgs e)
         {
             CommunicationMonitor.IsOnlineFeedback.FireUpdate();
+
+            if (e.Status == MonitorStatus.IsOk)
+            {
+                UpdateDeviceInfoIfMissing();
+            }
         }
 
         private void PortGather_LineReceived(object sender, GenericCommMethodReceiveTextArgs args)
@@ -1014,6 +1077,18 @@ namespace PepperDash.Essentials.Plugins.Lg.Display
                 case "d":
                     UpdateVideoMuteFb(responseValue);
                     break;
+                case "y":
+                    {
+                        var serial = LgDeviceInfoReply.Value(s);
+                        SetDeviceInfo(d => d.SerialNumber = serial, serial);
+                        break;
+                    }
+                case "z":
+                    {
+                        var version = LgDeviceInfoReply.Value(s);
+                        SetDeviceInfo(d => d.FirmwareVersion = version, version);
+                        break;
+                    }
             }
         }
 
